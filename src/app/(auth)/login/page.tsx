@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
-  const { signInWithEmail, user } = useAuth();
+  const { signInWithOtp, user } = useAuth();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,7 +18,7 @@ export default function LoginPage() {
     setErrorMessage('');
 
     try {
-      await signInWithEmail(email);
+      await signInWithOtp(email);
       setStatus('success');
     } catch (error: any) {
       setStatus('error');
@@ -50,7 +50,7 @@ export default function LoginPage() {
               href="/perfil"
               className="inline-block px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-colors"
             >
-              Ir a Mi Perfil →
+              Ir a Mi Progreso →
             </Link>
           </div>
         ) : status === 'success' ? (

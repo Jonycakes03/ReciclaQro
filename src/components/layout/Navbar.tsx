@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -9,11 +9,14 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, profile, isLoading, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [authPanelOpen, setAuthPanelOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
-    { name: 'Mapa de Acopio', href: '/' },
-    { name: 'Hub Educativo', href: '/educacion' },
-    { name: 'Mi Perfil & XP', href: '/perfil' },
+    { name: 'Mapa', href: '/' },
+    { name: 'Aprende', href: '/educacion' },
+    { name: 'Mi progreso', href: '/perfil' },
   ];
 
   const isActive = (path: string) => {
@@ -21,42 +24,47 @@ export function Navbar() {
     return pathname.startsWith(path);
   };
 
-  return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-105 transition-transform">
-                ♻️
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-lg tracking-tight text-gray-900 flex items-center gap-1.5">
-                  Recicla<span className="text-emerald-600">Qro</span>
-                  <span className="text-[10px] uppercase font-bold tracking-widest bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
-                    RAEE
-                  </span>
-                </span>
-                <span className="text-[11px] text-gray-500 font-medium -mt-1 hidden sm:block">
-                  Querétaro Sostenible
-                </span>
-              </div>
-            </Link>
-          </div>
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+  const getAvatarInitials = () => {
+    if (profile?.nombre) return profile.nombre.charAt(0).toUpperCase();
+    if (user?.email) return user.email.charAt(0).toUpperCase();
+    return 'U';
+  };
+
+  return (
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-5 py-3">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+              RQ
+            </div>
+            <span className="font-bold text-base">ReciclaQro</span>
+          </Link>
+
+          {/* Navigation Tabs */}
+          <nav className="flex gap-1 flex-1 overflow-x-auto">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     active
-                      ? 'text-emerald-700 bg-emerald-50 font-semibold shadow-xs'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   {link.name}
@@ -65,119 +73,90 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Auth State & Call to Action */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Auth Section */}
+          <div className="flex items-center gap-2.5">
             {isLoading ? (
-              <div className="h-9 w-28 bg-gray-100 animate-pulse rounded-lg" />
+              <div className="h-9 w-24 bg-gray-100 animate-pulse rounded-lg" />
             ) : user ? (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/perfil"
-                  className="flex items-center gap-2.5 px-3 py-1.5 bg-gray-50 hover:bg-emerald-50 border border-gray-200/80 rounded-full transition-colors text-xs font-semibold text-gray-800"
-                >
-                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
-                    {profile?.nombre ? profile.nombre.charAt(0).toUpperCase() : 'U'}
-                  </span>
-                  <span className="max-w-[120px] truncate">{profile?.nombre || user.email}</span>
-                  <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                    Nv. {profile?.nivel ?? 1}
-                  </span>
-                </Link>
-
+              <div className="flex items-center gap-2.5 relative" ref={dropdownRef}>
+                <span className="font-semibold text-sm hidden sm:block">
+                  {profile?.nombre || user.email?.split('@')[0]}
+                </span>
                 <button
-                  onClick={() => signOut()}
-                  className="text-xs font-medium text-gray-500 hover:text-red-600 px-2 py-1 transition-colors"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-9 h-9 rounded-full bg-gray-100 border-2 border-emerald-600 flex items-center justify-center font-bold text-emerald-600 hover:scale-105 transition-transform cursor-pointer"
                 >
-                  Salir
+                  {getAvatarInitials()}
                 </button>
+
+                {/* Dropdown Menu */}
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-[120%] bg-white border border-gray-200 rounded-xl w-[220px] shadow-lg flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        // TODO: Open avatar modal
+                      }}
+                      className="px-4 py-3.5 text-sm font-semibold text-left hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-200"
+                    >
+                      🎨 Cambiar avatar
+                    </button>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setDropdownOpen(false);
+                      }}
+                      className="px-4 py-3.5 text-sm font-semibold text-left hover:bg-gray-50 hover:text-red-600 transition-colors"
+                    >
+                      🚪 Cerrar sesión
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 px-3 py-2 transition-colors"
+                <button
+                  onClick={() => setAuthPanelOpen(!authPanelOpen)}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Ingresar
-                </Link>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all font-semibold"
-                >
-                  Magic Link
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              type="button"
-              className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none"
-              aria-label="Abrir menú"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pt-3 pb-5 space-y-2">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActive(link.href)
-                  ? 'text-emerald-700 bg-emerald-50 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
-
-          <div className="pt-3 border-t border-gray-100">
-            {user ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-3 py-2 text-sm text-gray-700">
-                  <span className="font-semibold">{profile?.nombre || user.email}</span>
-                  <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold">
-                    Nivel {profile?.nivel ?? 1} ({profile?.xp ?? 0} XP)
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    signOut();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-md"
-                >
-                  Cerrar Sesión
                 </button>
               </div>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-center w-full bg-emerald-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-emerald-700"
-              >
-                Iniciar Sesión con Magic Link
-              </Link>
             )}
           </div>
         </div>
-      )}
+
+        {/* Auth Panel (Dropdown) */}
+        {!user && authPanelOpen && (
+          <div className="pb-4">
+            <div className="max-w-[360px] bg-white border border-gray-200 rounded-xl p-4.5 shadow-sm">
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                  Correo electrónico
+                </label>
+                <input
+                  type="email"
+                  placeholder="tu@correo.com"
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Te enviaremos un Magic Link para acceder sin contraseña
+              </p>
+              <Link
+                href="/login"
+                onClick={() => setAuthPanelOpen(false)}
+                className="w-full bg-emerald-600 text-white border-none px-4 py-2.5 rounded-lg font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-emerald-700 hover:-translate-y-0.5 shadow-sm"
+              >
+                <span>Enviar Magic Link</span>
+              </Link>
+              <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                Al ingresar aceptas participar en el programa ciudadano voluntario de ReciclaQro.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </header>
   );
 }
