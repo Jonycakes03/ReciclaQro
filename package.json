@@ -13,10 +13,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@supabase/supabase-js": "^2.49.1",
-    "mapbox-gl": "^4.3.3",
+    "mapbox-gl": "^3.9.4",
     "react-map-gl": "^8.0.1"
   },
   "devDependencies": {
+    "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
