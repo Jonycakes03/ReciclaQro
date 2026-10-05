@@ -125,8 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Inicio de sesión con Magic Link (sin contraseña)
   const signInWithOtp = async (email: string) => {
     try {
-      const redirectUrl = typeof window !== 'undefined' 
-        ? `${window.location.origin}/perfil` 
+      const redirectUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/callback`
         : undefined;
 
       const { error } = await supabase.auth.signInWithOtp({
@@ -141,6 +141,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: err as Error };
     }
   };
+
+  // Alias para compatibilidad con el código existente
+  const signInWithEmail = signInWithOtp;
 
   // Cierre de sesión
   const signOut = async () => {
@@ -163,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     isLoading,
     signInWithOtp,
+    signInWithEmail,
     signOut,
     refreshProfile,
   };

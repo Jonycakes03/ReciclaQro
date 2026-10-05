@@ -97,6 +97,7 @@ export interface AuthContextType {
   profile: Usuario | null;
   isLoading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
