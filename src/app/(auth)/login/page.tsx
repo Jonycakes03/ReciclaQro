@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
-  const { signInWithOtp, user } = useAuth();
+  const { signInWithEmail, user } = useAuth();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -17,13 +17,12 @@ export default function LoginPage() {
     setStatus('loading');
     setErrorMessage('');
 
-    const { error } = await signInWithOtp(email);
-
-    if (error) {
+    try {
+      await signInWithEmail(email);
+      setStatus('success');
+    } catch (error: any) {
       setStatus('error');
       setErrorMessage(error.message || 'Error al enviar el enlace. Intenta nuevamente.');
-    } else {
-      setStatus('success');
     }
   };
 
