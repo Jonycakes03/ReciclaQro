@@ -75,7 +75,7 @@ Edita `.env.local` con tus credenciales de Supabase y Mapbox.
 npm run dev
 ```
 
-4. Abrir [http://localhost:3000](http://localhost:3167) en tu navegador.
+4. Abrir [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## Scripts Disponibles
 
