@@ -10,7 +10,6 @@ export function Navbar() {
   const { user, profile, isLoading, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [authPanelOpen, setAuthPanelOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
@@ -115,47 +114,16 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAuthPanelOpen(!authPanelOpen)}
+                <Link
+                  href="/perfil"
                   className="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Ingresar
-                </button>
+                </Link>
               </div>
             )}
           </div>
         </div>
-
-        {/* Auth Panel (Dropdown) */}
-        {!user && authPanelOpen && (
-          <div className="pb-4">
-            <div className="max-w-[360px] bg-white border border-gray-200 rounded-xl p-4.5 shadow-sm">
-              <div className="mb-3">
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-                  Correo electrónico
-                </label>
-                <input
-                  type="email"
-                  placeholder="tu@correo.com"
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Te enviaremos un Magic Link para acceder sin contraseña
-              </p>
-              <Link
-                href="/login"
-                onClick={() => setAuthPanelOpen(false)}
-                className="w-full bg-emerald-600 text-white border-none px-4 py-2.5 rounded-lg font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-emerald-700 hover:-translate-y-0.5 shadow-sm"
-              >
-                <span>Enviar Magic Link</span>
-              </Link>
-              <p className="text-xs text-gray-500 mt-3 leading-relaxed">
-                Al ingresar aceptas participar en el programa ciudadano voluntario de ReciclaQro.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

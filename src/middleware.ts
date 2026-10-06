@@ -33,13 +33,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect profile route
-  if (request.nextUrl.pathname.startsWith('/perfil') && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
   return supabaseResponse;
 }
 

@@ -2,12 +2,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PerfilPage() {
-  const { user, profile, isLoading, signOut } = useAuth();
+  const { user, profile, isLoading, signInWithOtp, signOut } = useAuth();
+  const searchParams = useSearchParams();
+  const callbackError = searchParams.get('error');
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState('default');
+  const [email, setEmail] = useState('');
+  const [authPanelOpen, setAuthPanelOpen] = useState(callbackError ? true : false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (isLoading) {
     return (
@@ -20,40 +27,119 @@ export default function PerfilPage() {
     );
   }
 
+  // Si no hay usuario logeado, mostramos la interfaz "Ingresar / Mi progreso" estilo prototipo
   if (!user) {
+    const handleLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!email) return;
+      setStatus('loading');
+      setErrorMsg('');
+      const { error } = await signInWithOtp(email);
+      if (error) {
+        console.error('Error enviando magic link:', error.message);
+        setErrorMsg(error.message || 'Error al enviar el enlace. Intenta nuevamente.');
+        setStatus('error');
+      } else {
+        setStatus('success');
+      }
+    };
+
     return (
-      <div className="flex-1 flex items-center justify-center py-16 px-4 bg-gray-900">
-        <div className="max-w-md w-full bg-gray-800 rounded-2xl shadow-lg border border-gray-700 p-8 text-center space-y-4">
-          <div className="w-14 h-14 bg-emerald-900 text-emerald-400 rounded-2xl mx-auto flex items-center justify-center text-3xl">
-            🔒
+      <div className="flex-1 min-h-screen bg-white">
+        <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Mi progreso</h1>
+          
+          <div className="bg-white border border-dashed border-gray-300 rounded-xl p-5 text-sm text-gray-500 mb-6 max-w-2xl">
+            <strong className="text-gray-900">El registro es opcional.</strong> Solo lo necesitas si quieres llevar el conteo de tu impacto y ganar puntos. Consultar el mapa y el hub educativo no lo requiere.
           </div>
-          <h2 className="text-xl font-bold text-white">
-            Inicia Sesión para ver tu Progreso
-          </h2>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            El sistema de gamificación y registro de reciclajes te permite acumular puntos XP, subir de nivel cívico y ganar medallas por cuidar el medio ambiente de Querétaro.
-          </p>
-          <Link
-            href="/login"
-            className="inline-block w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm"
+
+          {callbackError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4 max-w-md">
+              ⚠️ El enlace mágico expiró o ya fue usado. Por favor solicita uno nuevo con tu correo.
+            </div>
+          )}
+          
+          <div className="flex gap-2.5 mt-2 flex-wrap mb-4">
+            <button 
+              onClick={() => setAuthPanelOpen(!authPanelOpen)}
+              className="px-5 py-3 rounded-xl font-bold cursor-pointer border border-emerald-600 bg-emerald-600 text-white transition-colors hover:bg-emerald-700 shadow-sm"
+            >
+              ✨ Acceder con mi correo
+            </button>
+          </div>
+
+          {/* Auth Panel */}
+          <div 
+            className={`overflow-hidden transition-all duration-300 ease-in-out max-w-[360px] bg-white border border-gray-200 rounded-2xl shadow-sm ${
+              authPanelOpen ? 'max-h-[500px] opacity-100 p-5 mt-2' : 'max-h-0 opacity-0 p-0 mt-0 border-transparent'
+            }`}
           >
-            Acceder con Magic Link
-          </Link>
+            {status === 'success' ? (
+              <div className="text-center py-4">
+                <div className="text-4xl mb-3">📬</div>
+                <h3 className="font-bold text-gray-900 mb-2">¡Enlace enviado!</h3>
+                <p className="text-sm text-gray-500">
+                  Revisa tu bandeja de entrada en <strong>{email}</strong>. Da clic en el enlace mágico para iniciar sesión.
+                </p>
+                <button 
+                  onClick={() => {
+                    setStatus('idle');
+                    setAuthPanelOpen(false);
+                  }}
+                  className="mt-4 px-4 py-2 text-sm text-emerald-600 font-semibold hover:bg-emerald-50 rounded-lg"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleLogin}>
+                {status === 'error' && errorMsg && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 mb-3">
+                    {errorMsg}
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5 mb-4">
+                  <label className="text-xs font-semibold text-gray-600">Correo electrónico</label>
+                  <input 
+                    type="email" 
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="tu@correo.com"
+                    required
+                    className="px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                  />
+                </div>
+                <div className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  Te enviaremos un enlace mágico a tu correo para entrar — no necesitas crear ni recordar una contraseña.
+                </div>
+                <button 
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="w-full bg-emerald-600 text-white border-none px-4 py-2.5 rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-emerald-700 disabled:opacity-70 shadow-sm"
+                >
+                  {status === 'loading' ? 'Enviando...' : 'Enviar enlace mágico ➔'}
+                </button>
+                {status === 'error' && (
+                  <p className="text-xs text-red-500 mt-3 text-center">Hubo un error al enviar el enlace. Intenta de nuevo.</p>
+                )}
+              </form>
+            )}
+          </div>
+          
+          <p className="text-sm text-gray-500 leading-relaxed mt-6 max-w-[360px]">
+            ¿Primera vez aquí o ya tienes cuenta? No importa: con Magic Links tu correo es todo lo que necesitas para entrar o registrarte.
+          </p>
         </div>
       </div>
     );
   }
 
-  const nivelActual = profile?.nivel ?? 1;
-  const xpActual = profile?.xp ?? 0;
-  const xpMetaSiguiente = nivelActual * 500;
-  const porcentajeProgreso = Math.min(100, Math.round((xpActual / xpMetaSiguiente) * 100));
-
+  // Si HAY usuario logeado, mostramos el dashboard en progreso (dark mode)
   const getAvatarDisplay = () => {
     if (selectedAvatar === 'planta') return '🌱';
     if (selectedAvatar === 'planeta') return '🌎';
     if (selectedAvatar === 'reciclaje') return '♻️';
-    return profile?.nombre ? profile.nombre.charAt(0).toUpperCase() : 'C';
+    return profile?.nombre ? profile.nombre.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || 'C';
   };
 
   return (
@@ -87,7 +173,7 @@ export default function PerfilPage() {
               </button>
             </nav>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 relative">
               <span className="font-semibold text-sm text-white hidden sm:block">
                 {profile?.nombre || user.email?.split('@')[0]}
               </span>
@@ -102,88 +188,23 @@ export default function PerfilPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-[640px] mx-auto px-4 py-8 pb-16">
-        <h1 className="text-2xl font-bold text-white mb-4">Mi progreso</h1>
+      {/* Main Content - Placeholder en progreso */}
+      <div className="max-w-[640px] mx-auto px-4 py-8 pb-16 text-center mt-10">
+        <h1 className="text-2xl font-bold text-white mb-6">Mi progreso</h1>
 
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 space-y-4">
-          {/* Profile Header */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="w-16 h-16 rounded-full bg-gray-700 border-2 border-emerald-600 flex items-center justify-center text-2xl font-bold text-emerald-400">
-              {getAvatarDisplay()}
-            </div>
-            <div>
-              <div className="font-bold text-lg text-white">
-                {profile?.nombre || 'Ciudadano Reciclador'}
-              </div>
-              <div className="text-sm text-emerald-400 font-semibold">
-                🏆 Nivel {nivelActual} · Guardián del Suelo
-              </div>
-            </div>
-          </div>
-
-          {/* XP Bar */}
-          <div className="bg-gray-700 rounded-full h-2.5 overflow-hidden mt-3">
-            <div
-              className="bg-emerald-600 h-full"
-              style={{ width: `${porcentajeProgreso}%` }}
-            ></div>
-          </div>
-          <div className="text-xs text-gray-400 mt-1.5">
-            {xpActual} / {xpMetaSiguiente} XP para el siguiente nivel
-          </div>
-
-          {/* Impact Stats */}
-          <div className="grid grid-cols-3 gap-3.5 mt-5">
-            <div className="bg-gray-700/50 rounded-xl p-4 text-center border border-gray-700">
-              <div className="text-xl font-bold text-emerald-400">12 kg</div>
-              <div className="text-xs text-gray-400">CO₂ evitado</div>
-            </div>
-            <div className="bg-gray-700/50 rounded-xl p-4 text-center border border-gray-700">
-              <div className="text-xl font-bold text-emerald-400">5</div>
-              <div className="text-xs text-gray-400">Dispositivos entregados</div>
-            </div>
-            <div className="bg-gray-700/50 rounded-xl p-4 text-center border border-gray-700">
-              <div className="text-xl font-bold text-emerald-400">3</div>
-              <div className="text-xs text-gray-400">Meses activo</div>
-            </div>
-          </div>
-
-          {/* History */}
-          <div className="space-y-0">
-            <div className="flex justify-between items-center py-2.5 border-b border-gray-700 text-sm">
-              <span>2 laptops viejas</span>
-              <span className="text-emerald-400 font-bold text-xs">+300 XP</span>
-            </div>
-            <div className="flex justify-between items-center py-2.5 border-b border-gray-700 text-sm">
-              <span>1 microondas</span>
-              <span className="text-emerald-400 font-bold text-xs">+150 XP</span>
-            </div>
-            <div className="flex justify-between items-center py-2.5 text-sm">
-              <span>5 kg de cartón reciclado</span>
-              <span className="text-emerald-400 font-bold text-xs">+75 XP</span>
-            </div>
-          </div>
-
-          <button className="w-full bg-amber-500 text-gray-900 border-none py-2.5 px-4 rounded-xl font-bold cursor-pointer mt-4 hover:bg-amber-400 transition-colors">
-            + Reportar un reciclaje
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-12 flex flex-col items-center justify-center space-y-4 shadow-xl">
+          <div className="text-5xl mb-2">🚧</div>
+          <h2 className="text-xl font-bold text-emerald-400">Sección en progreso backend-frontend</h2>
+          <p className="text-sm text-gray-400 max-w-sm leading-relaxed">
+            Actualmente estamos conectando el frontend con el backend para mostrar tus estadísticas reales de XP, recompensas e historial de reciclaje.
+            ¡Vuelve pronto para ver tus logros!
+          </p>
+          <button 
+            onClick={() => signOut()}
+            className="mt-6 px-5 py-2.5 border border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white font-semibold rounded-xl text-sm transition-colors"
+          >
+            Cerrar Sesión
           </button>
-
-          {/* Rewards */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-4">
-            <div className="bg-gray-700/50 border border-emerald-600 rounded-xl p-3.5 text-xs">
-              🌱 Planta nativa gratis
-              <div className="text-gray-400 text-xs mt-1">Disponible ahora</div>
-            </div>
-            <div className="bg-gray-700/50 border border-gray-700 rounded-xl p-3.5 text-xs">
-              🔒 Descuento refrendo
-              <div className="text-gray-400 text-xs mt-1">Nivel 5</div>
-            </div>
-            <div className="bg-gray-700/50 border border-gray-700 rounded-xl p-3.5 text-xs">
-              🔒 Certificado de impacto
-              <div className="text-gray-400 text-xs mt-1">Nivel 10</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -197,25 +218,25 @@ export default function PerfilPage() {
             </p>
             <div className="flex justify-center gap-4 mb-5">
               <button
-                onClick={() => setSelectedAvatar('default')}
+                onClick={() => { setSelectedAvatar('default'); setAvatarModalOpen(false); }}
                 className="w-14 h-14 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-2xl cursor-pointer transition-all hover:border-emerald-600 hover:scale-110 text-emerald-400 font-bold"
               >
-                {profile?.nombre ? profile.nombre.charAt(0).toUpperCase() : 'C'}
+                {profile?.nombre ? profile.nombre.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || 'C'}
               </button>
               <button
-                onClick={() => setSelectedAvatar('planta')}
+                onClick={() => { setSelectedAvatar('planta'); setAvatarModalOpen(false); }}
                 className="w-14 h-14 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-2xl cursor-pointer transition-all hover:border-emerald-600 hover:scale-110 text-emerald-400 font-bold"
               >
                 🌱
               </button>
               <button
-                onClick={() => setSelectedAvatar('planeta')}
+                onClick={() => { setSelectedAvatar('planeta'); setAvatarModalOpen(false); }}
                 className="w-14 h-14 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-2xl cursor-pointer transition-all hover:border-emerald-600 hover:scale-110 text-emerald-400 font-bold"
               >
                 🌎
               </button>
               <button
-                onClick={() => setSelectedAvatar('reciclaje')}
+                onClick={() => { setSelectedAvatar('reciclaje'); setAvatarModalOpen(false); }}
                 className="w-14 h-14 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-2xl cursor-pointer transition-all hover:border-emerald-600 hover:scale-110 text-emerald-400 font-bold"
               >
                 ♻️
