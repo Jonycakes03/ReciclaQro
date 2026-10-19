@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
-import { Usuario, AuthContextType } from '@/types';
+import { apiFetch } from '@/lib/apiClient';
+import { Usuario, AuthContextType, PerfilResponse } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -13,106 +14,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Usuario | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Carga o crea el perfil en la tabla 'usuarios'
-  const fetchOrCreateProfile = useCallback(async (currentUser: User): Promise<Usuario | null> => {
+  // Obtiene el perfil vía GET /api/perfil (el servidor lo crea si es la primera visita)
+  const fetchProfile = useCallback(async (accessToken: string): Promise<Usuario | null> => {
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error al obtener perfil de usuario:', error.message);
-        return null;
-      }
-
-      if (data) {
-        return data as Usuario;
-      }
-
-      // Si no existe aún en la tabla (registro nuevo con Magic Link), inicializamos el perfil
-      const nuevoPerfil: Partial<Usuario> = {
-        id: currentUser.id,
-        email: currentUser.email || '',
-        nombre: currentUser.user_metadata?.nombre || currentUser.email?.split('@')[0] || 'Ciudadano Qro',
-        nivel: 1,
-        xp: 0,
-      };
-
-      const { data: inserted, error: insertError } = await supabase
-        .from('usuarios')
-        .insert(nuevoPerfil)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.warn('Aviso al auto-crear perfil (RLS o trigger existente):', insertError.message);
-        return nuevoPerfil as Usuario;
-      }
-
-      return inserted as Usuario;
+      const data = await apiFetch<PerfilResponse>('/api/perfil?limit=1', { accessToken });
+      return data.usuario;
     } catch (err) {
-      console.error('Error inesperado sincronizando perfil:', err);
+      console.error('Error al obtener el perfil:', err);
       return null;
     }
   }, []);
 
-  // Función para refrescar el perfil (después de sumar XP o editar perfil)
+  // Refresca el perfil (p. ej. después de registrar un reciclaje y sumar XP)
   const refreshProfile = useCallback(async () => {
-    if (!user) return;
-    const userProfile = await fetchOrCreateProfile(user);
-    if (userProfile) {
-      setProfile(userProfile);
-    }
-  }, [user, fetchOrCreateProfile]);
+    if (!session?.access_token) return;
+    const userProfile = await fetchProfile(session.access_token);
+    if (userProfile) setProfile(userProfile);
+  }, [session, fetchProfile]);
 
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Obtener la sesión inicial existente
-    const initAuth = async () => {
-      try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error al recuperar sesión inicial:', error.message);
-        }
-
-        if (isMounted) {
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
-
-          if (initialSession?.user) {
-            const userProfile = await fetchOrCreateProfile(initialSession.user);
-            if (isMounted) setProfile(userProfile);
-          }
-        }
-      } catch (err) {
-        console.error('Error en inicialización de Auth:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // 2. Suscripción a cambios de estado de autenticación (Login, Magic Link callback, Logout, Token Refresh)
+    // onAuthStateChange emite INITIAL_SESSION al suscribirse, además de login, logout y refresh.
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, newSession: Session | null) => {
+      (event: AuthChangeEvent, newSession: Session | null) => {
         if (!isMounted) return;
 
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
-        if (newSession?.user) {
-          const userProfile = await fetchOrCreateProfile(newSession.user);
-          if (isMounted) setProfile(userProfile);
-        } else {
+        if (!newSession?.user) {
           setProfile(null);
+          setIsLoading(false);
+          return;
         }
 
-        setIsLoading(false);
+        // El refresco de token no cambia el perfil: evitamos una petición innecesaria.
+        if (event === 'TOKEN_REFRESHED') {
+          setIsLoading(false);
+          return;
+        }
+
+        // Se difiere para no llamar a la red dentro del callback de auth.
+        setTimeout(async () => {
+          const userProfile = await fetchProfile(newSession.access_token);
+          if (!isMounted) return;
+          setProfile(userProfile);
+          setIsLoading(false);
+        }, 0);
       }
     );
 
@@ -120,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [fetchOrCreateProfile]);
+  }, [fetchProfile]);
+
 
   // Inicio de sesión con Magic Link (sin contraseña)
   const signInWithOtp = async (email: string) => {

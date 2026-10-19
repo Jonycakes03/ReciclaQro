@@ -17,13 +17,15 @@ export default function LoginPage() {
     setStatus('loading');
     setErrorMessage('');
 
-    try {
-      await signInWithOtp(email);
-      setStatus('success');
-    } catch (error: any) {
+    const { error } = await signInWithOtp(email);
+
+    if (error) {
       setStatus('error');
       setErrorMessage(error.message || 'Error al enviar el enlace. Intenta nuevamente.');
+      return;
     }
+
+    setStatus('success');
   };
 
   return (

@@ -1,61 +1,19 @@
 import { Session, User } from '@supabase/supabase-js';
+import type {
+  Usuario,
+  CentroAcopio,
+  MaterialEducativo,
+  RegistroReciclaje,
+} from './database';
 
 // -------------------------------------------------------------
-// Entidades de la Base de Datos (Supabase)
+// Entidades de la Base de Datos (fuente de verdad: ./database.ts)
 // -------------------------------------------------------------
 
-export interface Usuario {
-  id: string;
-  email: string;
-  nombre?: string;
-  nivel: number;
-  xp: number;
-  avatar_url?: string;
-  created_at: string;
-}
-
-export interface CentroAcopio {
-  id: string;
-  nombre: string;
-  direccion: string;
-  latitud: number;
-  longitud: number;
-  materiales: string[];
-  horario: string;
-  telefono?: string;
-  responsable?: string;
-  municipio?: string;
-  activo?: boolean;
-  distancia_km?: number; // Calculado mediante RPC de PostGIS
-  created_at?: string;
-}
-
-export interface MaterialEducativo {
-  id: string;
-  titulo: string;
-  slug?: string;
-  contenido: string;
-  resumen?: string;
-  categoria: string;
-  tiempo_lectura?: string;
-  imagen_url?: string;
-  creado_en: string;
-}
+export type { Usuario, CentroAcopio, MaterialEducativo, RegistroReciclaje };
 
 // Alias para compatibilidad
 export type Articulo = MaterialEducativo;
-
-export interface RegistroReciclaje {
-  id: string;
-  usuario_id: string;
-  centro_acopio_id: string;
-  centro_nombre?: string;
-  materiales: string[];
-  xp_ganada: number;
-  peso_kg?: number;
-  fecha: string;
-  notas?: string;
-}
 
 export interface Logro {
   id: string;
@@ -85,6 +43,26 @@ export interface InfoCategoriaRAEE {
   icono: string;
   descripcion: string;
   xpBase: number;
+}
+
+// -------------------------------------------------------------
+// Respuestas de la API interna
+// -------------------------------------------------------------
+
+export interface PerfilResponse {
+  usuario: Usuario;
+  historial: RegistroReciclaje[];
+}
+
+export interface RegistrarReciclajeInput {
+  id_centro: string | null;
+  tipo_aparato: string;
+  xp_otorgada: number;
+}
+
+export interface RegistrarReciclajeResponse {
+  registro: RegistroReciclaje;
+  usuario: Pick<Usuario, 'id' | 'nombre' | 'email' | 'experiencia_xp' | 'nivel_actual'>;
 }
 
 // -------------------------------------------------------------

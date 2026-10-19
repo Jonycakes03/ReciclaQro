@@ -1,4 +1,9 @@
-export default function ArticuloPage({ params }: { params: { id: string } }) {
+export default async function ArticuloPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -11,10 +16,10 @@ export default function ArticuloPage({ params }: { params: { id: string } }) {
         
         <article className="bg-white rounded-lg shadow-md p-8">
           <h1 className="text-4xl font-bold mb-4">
-            Artículo: {params.id}
+            Artículo: {id}
           </h1>
           <p className="text-gray-600 mb-6">
-            Contenido del artículo sobre {params.id}
+            Contenido del artículo sobre {id}
           </p>
           
           <div className="prose max-w-none">

@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
-export default function PerfilPage() {
+function PerfilContent() {
   const { user, profile, isLoading, signInWithOtp, signOut } = useAuth();
   const searchParams = useSearchParams();
   const callbackError = searchParams.get('error');
@@ -144,53 +143,32 @@ export default function PerfilPage() {
 
   return (
     <div className="flex-1 bg-gray-900 min-h-screen">
-      {/* Header - Dark Mode */}
-      <header className="sticky top-0 z-40 bg-gray-800 border-b border-gray-700">
-        <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-5 py-3">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                RQ
-              </div>
-              <span className="font-bold text-base text-white">ReciclaQro</span>
-            </Link>
-
-            <nav className="flex gap-1 flex-1 overflow-x-auto">
-              <Link
-                href="/"
-                className="px-3.5 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition-colors whitespace-nowrap"
-              >
-                Mapa
-              </Link>
-              <Link
-                href="/educacion"
-                className="px-3.5 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-700 hover:text-white transition-colors whitespace-nowrap"
-              >
-                Aprende
-              </Link>
-              <button className="px-3.5 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white whitespace-nowrap">
-                Mi progreso
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-2.5 relative">
-              <span className="font-semibold text-sm text-white hidden sm:block">
-                {profile?.nombre || user.email?.split('@')[0]}
-              </span>
-              <button
-                onClick={() => setAvatarModalOpen(true)}
-                className="w-9 h-9 rounded-full bg-gray-700 border-2 border-emerald-600 flex items-center justify-center font-bold text-emerald-400 hover:scale-105 transition-transform cursor-pointer"
-              >
-                {getAvatarDisplay()}
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content - Placeholder en progreso */}
       <div className="max-w-[640px] mx-auto px-4 py-8 pb-16 text-center mt-10">
-        <h1 className="text-2xl font-bold text-white mb-6">Mi progreso</h1>
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button
+            onClick={() => setAvatarModalOpen(true)}
+            aria-label="Cambiar avatar"
+            className="w-12 h-12 rounded-full bg-gray-700 border-2 border-emerald-600 flex items-center justify-center text-lg font-bold text-emerald-400 hover:scale-105 transition-transform cursor-pointer"
+          >
+            {getAvatarDisplay()}
+          </button>
+          <div className="text-left">
+            <h1 className="text-2xl font-bold text-white leading-tight">Mi progreso</h1>
+            <p className="text-xs text-gray-400">{profile?.nombre || user.email}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400">Nivel</p>
+            <p className="text-2xl font-bold text-emerald-400">{profile?.nivel_actual ?? 1}</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+            <p className="text-xs text-gray-400">Experiencia</p>
+            <p className="text-2xl font-bold text-emerald-400">{profile?.experiencia_xp ?? 0} XP</p>
+          </div>
+        </div>
 
         <div className="bg-gray-800 border border-gray-700 rounded-2xl p-12 flex flex-col items-center justify-center space-y-4 shadow-xl">
           <div className="text-5xl mb-2">🚧</div>
@@ -252,5 +230,13 @@ export default function PerfilPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PerfilPage() {
+  return (
+    <Suspense fallback={null}>
+      <PerfilContent />
+    </Suspense>
   );
 }
