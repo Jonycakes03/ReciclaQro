@@ -5,27 +5,48 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
-  const { signInWithOtp, user } = useAuth();
+  const { signInWithPassword, resetPassword, user } = useAuth();
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setStatus('loading');
+    setErrorMessage('');
+
+    const { error } = await signInWithPassword(email, password);
+
+    if (error) {
+      setStatus('error');
+      setErrorMessage(error.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      return;
+    }
+
+    setStatus('idle');
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
 
     setStatus('loading');
     setErrorMessage('');
 
-    const { error } = await signInWithOtp(email);
+    const { error } = await resetPassword(email);
 
     if (error) {
       setStatus('error');
-      setErrorMessage(error.message || 'Error al enviar el enlace. Intenta nuevamente.');
+      setErrorMessage(error.message || 'Error al enviar correo de recuperación.');
       return;
     }
 
-    setStatus('success');
+    setResetEmailSent(true);
+    setStatus('idle');
   };
 
   return (
@@ -33,13 +54,13 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center text-2xl font-bold shadow-xs">
-            ✉️
+            🔐
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Acceso Ciudadano
+            Iniciar Sesión
           </h1>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            Ingresa tu correo para recibir un enlace de acceso seguro (Magic Link). Sin contraseñas que recordar.
+            Ingresa tu correo y contraseña para acceder a tu cuenta.
           </p>
         </div>
 
@@ -55,20 +76,20 @@ export default function LoginPage() {
               Ir a Mi Progreso →
             </Link>
           </div>
-        ) : status === 'success' ? (
+        ) : resetEmailSent ? (
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center space-y-3">
             <div className="text-3xl">📬</div>
             <h3 className="text-sm font-bold text-emerald-900">
-              ¡Revisa tu bandeja de entrada!
+              ¡Correo enviado!
             </h3>
             <p className="text-xs text-emerald-700 leading-relaxed">
-              Hemos enviado un enlace mágico a <strong>{email}</strong>. Haz clic en el enlace de tu correo para iniciar sesión automáticamente.
+              Hemos enviado un enlace de recuperación a <strong>{email}</strong>. Revisa tu bandeja de entrada.
             </p>
             <button
-              onClick={() => setStatus('idle')}
+              onClick={() => setResetEmailSent(false)}
               className="text-xs font-medium text-emerald-800 underline hover:text-emerald-900 pt-2"
             >
-              ¿Usar otro correo?
+              Volver al login
             </button>
           </div>
         ) : (
@@ -94,6 +115,21 @@ export default function LoginPage() {
               />
             </div>
 
+            <div>
+              <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-slate-800"
+              />
+            </div>
+
             <button
               type="submit"
               disabled={status === 'loading'}
@@ -105,12 +141,29 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                   </svg>
-                  <span>Enviando enlace...</span>
+                  <span>Iniciando sesión...</span>
                 </>
               ) : (
-                'Enviar Magic Link'
+                'Iniciar Sesión'
               )}
             </button>
+
+            <div className="flex items-center justify-between text-xs">
+              <Link
+                href="/registro"
+                className="text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Crear cuenta
+              </Link>
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={status === 'loading' || !email}
+                className="text-slate-500 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
 
             <p className="text-[11px] text-center text-slate-400">
               Al ingresar aceptas participar en el programa ciudadano voluntario de ReciclaQro.
