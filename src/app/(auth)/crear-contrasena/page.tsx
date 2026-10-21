@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { apiFetch } from '@/lib/apiClient';
 
 // Marcar como dynamic para evitar error de pre-renderización
 export const dynamic = 'force-dynamic';
@@ -53,7 +54,21 @@ export default function CrearContrasenaPage() {
         throw updateError;
       }
 
-      // El perfil se crea automáticamente al acceder a /api/perfil
+      // Crear fila en usuarios explícitamente (POST /api/perfil)
+      // Esto asegura que el usuario existe en la base de datos
+      if (session.access_token) {
+        try {
+          await apiFetch('/api/perfil', {
+            method: 'POST',
+            accessToken: session.access_token,
+            body: JSON.stringify({}),
+          });
+        } catch (apiError) {
+          console.error('Error al crear perfil:', apiError);
+          // No fallamos el flujo si el perfil ya existe
+        }
+      }
+
       // Refrescamos el perfil para asegurar que existe
       await refreshProfile();
 

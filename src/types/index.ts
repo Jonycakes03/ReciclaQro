@@ -51,7 +51,15 @@ export interface InfoCategoriaRAEE {
 
 export interface PerfilResponse {
   usuario: Usuario;
-  historial: RegistroReciclaje[];
+  historial?: RegistroReciclaje[];
+}
+
+export interface CrearPerfilInput {
+  nombre?: string;
+}
+
+export interface CrearPerfilResponse {
+  usuario: Usuario;
 }
 
 export interface RegistrarReciclajeInput {
