@@ -272,7 +272,6 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
               <input type="radio" name="q1" value="c" />
               <span>C) Reciclaje</span>
             </label>
-            <p className="text-sm text-emerald-600 font-semibold mt-2">✓ Respuesta correcta: B</p>
           </div>
           
           <h3 className="font-bold text-gray-900 mb-4">Pregunta 2: ¿Qué es RAEE?</h3>
@@ -289,7 +288,6 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
               <input type="radio" name="q2" value="c" />
               <span>C) Residuos de Alimentos</span>
             </label>
-            <p className="text-sm text-emerald-600 font-semibold mt-2">✓ Respuesta correcta: A</p>
           </div>
           
           <h3 className="font-bold text-gray-900 mb-4">Pregunta 3: ¿Cuál de estos se puede reciclar en un centro de acopio común?</h3>
@@ -306,7 +304,6 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
               <input type="radio" name="q3" value="c" />
               <span>C) Celular roto</span>
             </label>
-            <p className="text-sm text-emerald-600 font-semibold mt-2">✓ Respuesta correcta: B</p>
           </div>
           
           <h3 className="font-bold text-gray-900 mb-4">Pregunta 4: ¿Qué metal es muy valioso en celulares?</h3>
@@ -323,7 +320,6 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
               <input type="radio" name="q4" value="c" />
               <span>C) Plomo</span>
             </label>
-            <p className="text-sm text-emerald-600 font-semibold mt-2">✓ Respuesta correcta: B</p>
           </div>
           
           <h3 className="font-bold text-gray-900 mb-4">Pregunta 5: ¿Por qué no debemos tirar baterías al basurero?</h3>
@@ -340,7 +336,6 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
               <input type="radio" name="q5" value="c" />
               <span>C) Son muy pesadas</span>
             </label>
-            <p className="text-sm text-emerald-600 font-semibold mt-2">✓ Respuesta correcta: B</p>
           </div>
         </div>
         
