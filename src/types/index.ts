@@ -2,6 +2,7 @@ import { Session, User } from '@supabase/supabase-js';
 import type {
   Usuario,
   CentroAcopio,
+  CentroAcopioMapa,
   MaterialEducativo,
   RegistroReciclaje,
 } from './database';
@@ -10,7 +11,7 @@ import type {
 // Entidades de la Base de Datos (fuente de verdad: ./database.ts)
 // -------------------------------------------------------------
 
-export type { Usuario, CentroAcopio, MaterialEducativo, RegistroReciclaje };
+export type { Usuario, CentroAcopio, CentroAcopioMapa, MaterialEducativo, RegistroReciclaje };
 
 // Alias para compatibilidad
 export type Articulo = MaterialEducativo;

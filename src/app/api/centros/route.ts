@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createSupabasePublicClient } from '@/lib/supabase/server';
+import { parseUbicacion } from '@/lib/geo';
+import type { CentroAcopioMapa } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/centros — Centros de acopio activos (público). */
+/**
+ * GET /api/centros — Centros de acopio activos (público).
+ * Devuelve `lat`/`lng` ya decodificados (la columna `ubicacion` llega como EWKB hexadecimal).
+ */
 export async function GET() {
   try {
     const supabase = createSupabasePublicClient();
@@ -22,7 +27,17 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ data: data ?? [] }, { status: 200 });
+    const centros: CentroAcopioMapa[] = [];
+    for (const { ubicacion, ...resto } of data ?? []) {
+      const coords = parseUbicacion(ubicacion);
+      if (!coords) {
+        console.warn(`[GET /api/centros] Ubicación inválida, se omite: ${resto.nombre}`);
+        continue;
+      }
+      centros.push({ ...resto, lat: coords.lat, lng: coords.lng });
+    }
+
+    return NextResponse.json({ data: centros }, { status: 200 });
   } catch (err) {
     console.error('[GET /api/centros] Error inesperado:', err);
     return NextResponse.json({ error: 'Error interno del servidor.' }, { status: 500 });

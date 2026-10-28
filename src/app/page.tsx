@@ -1,79 +1,107 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { apiFetch } from '@/lib/apiClient';
+import { distanciaKm, type Coordenadas } from '@/lib/geo';
+import { GRUPOS_RAEE, centroAcepta, normalizar } from '@/features/map/categorias';
+import type { CentroAcopioMapa } from '@/types';
 
-// Categorías oficiales de RAEE para filtrado
-const CATEGORIAS_RAEE = [
-  { id: 'todos', nombre: 'Todos los RAEE', icono: '⚡' },
-  { id: 'computo', nombre: 'Cómputo & Laptops', icono: '💻' },
-  { id: 'telefonia', nombre: 'Celulares & Tablets', icono: '📱' },
-  { id: 'baterias', nombre: 'Pilas & Baterías', icono: '🔋' },
-  { id: 'linea_blanca', nombre: 'Línea Blanca & Microondas', icono: '🔌' },
-  { id: 'audio_video', nombre: 'TVs & Monitores', icono: '🖥️' },
-  { id: 'cables', nombre: 'Cables & Periféricos', icono: '🎧' },
-];
+// mapbox-gl necesita `window`: se carga solo en el navegador.
+const MapboxView = dynamic(() => import('@/features/map/MapboxView'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-slate-100 text-xs text-slate-500">
+      Cargando mapa…
+    </div>
+  ),
+});
 
-// Datos demo preparados para la vista previa del mapa antes de conectar Supabase/PostGIS
-const CENTROS_DESTACADOS_PREVIEW = [
-  {
-    id: '1',
-    nombre: 'Punto Verde Parque Querétaro 2000',
-    direccion: 'Blvd. Bernardo Quintana s/n, Parque Querétaro 2000',
-    municipio: 'Querétaro',
-    horario: 'Lun - Sáb: 8:00 AM - 4:00 PM',
-    distancia: '1.2 km',
-    materiales: ['Cómputo', 'Celulares', 'Pilas', 'Cables'],
-    activo: true,
-  },
-  {
-    id: '2',
-    nombre: 'Centro de Acopio Municipal Corregidora',
-    direccion: 'Av. Paseo Constituyentes 1200, El Pueblito',
-    municipio: 'Corregidora',
-    horario: 'Lun - Vie: 9:00 AM - 5:00 PM',
-    distancia: '3.8 km',
-    materiales: ['Línea Blanca', 'Monitores', 'Pilas', 'Electrónicos'],
-    activo: true,
-  },
-  {
-    id: '3',
-    nombre: 'Módulo Juriquilla Santa Rosa',
-    direccion: 'Av. de las Ciencias 200, Juriquilla',
-    municipio: 'Querétaro',
-    horario: 'Mié - Dom: 10:00 AM - 6:00 PM',
-    distancia: '6.4 km',
-    materiales: ['Celulares', 'Laptops', 'Pequeños enseres'],
-    activo: true,
-  },
-];
+type CentroConDistancia = CentroAcopioMapa & { distancia: number | null };
 
 export default function HomePage() {
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('todos');
+  const [centros, setCentros] = useState<CentroAcopioMapa[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
+  const [grupoId, setGrupoId] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
-  const [centroSeleccionado, setCentroSeleccionado] = useState(CENTROS_DESTACADOS_PREVIEW[0]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [userLocation, setUserLocation] = useState<Coordenadas | null>(null);
   const [localizando, setLocalizando] = useState(false);
+  const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
+
+  // Carga de centros desde GET /api/centros (público, sin token)
+  useEffect(() => {
+    let activo = true;
+    apiFetch<CentroAcopioMapa[]>('/api/centros', { accessToken: null })
+      .then((data) => {
+        if (activo) setCentros(data ?? []);
+      })
+      .catch((err: Error) => {
+        if (activo) setErrorCarga(err.message || 'No se pudieron cargar los centros.');
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  // Filtros + búsqueda + distancia (ordena por cercanía si hay ubicación)
+  const visibles = useMemo<CentroConDistancia[]>(() => {
+    const grupo = GRUPOS_RAEE.find((g) => g.id === grupoId) ?? GRUPOS_RAEE[0];
+    const termino = normalizar(busqueda.trim());
+
+    const lista = centros
+      .filter((c) => centroAcepta(c.categorias_aceptadas, grupo))
+      .filter(
+        (c) =>
+          !termino || normalizar(`${c.nombre} ${c.direccion ?? ''}`).includes(termino)
+      )
+      .map((c) => ({
+        ...c,
+        distancia: userLocation ? distanciaKm(userLocation, { lat: c.lat, lng: c.lng }) : null,
+      }));
+
+    if (userLocation) lista.sort((a, b) => (a.distancia ?? 0) - (b.distancia ?? 0));
+    return lista;
+  }, [centros, grupoId, busqueda, userLocation]);
+
+  // Si el centro seleccionado queda fuera del filtro, se deselecciona.
+  useEffect(() => {
+    if (selectedId && !visibles.some((c) => c.id === selectedId)) setSelectedId(null);
+  }, [visibles, selectedId]);
+
+  // Al seleccionar desde el mapa, desplaza la tarjeta correspondiente a la vista.
+  useEffect(() => {
+    if (!selectedId) return;
+    document
+      .getElementById(`centro-${selectedId}`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
 
   const handleGeolocalizacion = () => {
-    setLocalizando(true);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocalizando(false);
-          alert(
-            `📍 Coordenadas detectadas: Lat ${pos.coords.latitude.toFixed(4)}, Lng ${pos.coords.longitude.toFixed(4)}.\n` +
-            `En la siguiente iteración, este evento disparará la consulta PostGIS: rpc('buscar_centros_cercanos').`
-          );
-        },
-        () => {
-          setLocalizando(false);
-          alert('No se pudo acceder a tu ubicación. Puedes buscar por municipio o colonia.');
-        }
-      );
-    } else {
-      setLocalizando(false);
-      alert('Tu navegador no soporta geolocalización.');
+    setErrorUbicacion(null);
+    if (!('geolocation' in navigator)) {
+      setErrorUbicacion('Tu navegador no soporta geolocalización.');
+      return;
     }
+    setLocalizando(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocalizando(false);
+      },
+      () => {
+        setLocalizando(false);
+        setErrorUbicacion('No se pudo acceder a tu ubicación. Revisa los permisos del navegador.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   return (
@@ -83,7 +111,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100/80 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-              <span>🌿 Querétaro Limpio & Circular</span>
+              <span>🌿 Querétaro Limpio &amp; Circular</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
             </div>
 
@@ -92,16 +120,16 @@ export default function HomePage() {
             </h1>
 
             <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-              Ubica centros de acopio autorizados para residuos de manejo especial (RAEE). Evita que metales pesados contaminen nuestros mantos acuíferos y gana puntos XP por tu compromiso ciudadano.
+              Ubica centros de acopio para residuos de manejo especial (RAEE). Evita que metales pesados contaminen nuestros mantos acuíferos y gana puntos XP por tu compromiso ciudadano.
             </p>
 
             {/* Badges de impacto */}
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs font-medium text-slate-500">
               <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
-                📍 <strong>PostGIS</strong> Cercanía en tiempo real
+                📍 <strong>Cercanía</strong> según tu ubicación
               </span>
               <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
-                🛡️ <strong>100%</strong> Centros Verificados
+                🗺️ <strong>Mapa</strong> interactivo
               </span>
               <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
                 🎮 <strong>Gamificación</strong> Sube de nivel
@@ -126,7 +154,7 @@ export default function HomePage() {
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por municipio, colonia o centro (ej. Juriquilla, Centro, Corregidora)..."
+                placeholder="Buscar por nombre, colonia o municipio (ej. San Juan del Río, Corregidora)..."
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-slate-800"
               />
             </div>
@@ -135,32 +163,36 @@ export default function HomePage() {
             <button
               onClick={handleGeolocalizacion}
               disabled={localizando}
-              className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-semibold shadow-sm transition-all whitespace-nowrap cursor-pointer"
+              className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-70 text-white rounded-xl text-sm font-semibold shadow-sm transition-all whitespace-nowrap cursor-pointer"
             >
               <svg className={`w-4 h-4 ${localizando ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              {localizando ? 'Localizando...' : 'Centros Cerca de Mí'}
+              {localizando ? 'Localizando...' : userLocation ? 'Actualizar mi ubicación' : 'Centros Cerca de Mí'}
             </button>
           </div>
 
-          {/* Chips de Categorías de Residuos RAEE */}
+          {errorUbicacion && (
+            <p className="text-xs text-red-600 pt-2">{errorUbicacion}</p>
+          )}
+
+          {/* Chips de residuos RAEE */}
           <div className="flex items-center gap-2 overflow-x-auto pt-4 pb-1 scrollbar-none">
-            {CATEGORIAS_RAEE.map((cat) => {
-              const active = categoriaSeleccionada === cat.id;
+            {GRUPOS_RAEE.map((grupo) => {
+              const active = grupoId === grupo.id;
               return (
                 <button
-                  key={cat.id}
-                  onClick={() => setCategoriaSeleccionada(cat.id)}
+                  key={grupo.id}
+                  onClick={() => setGrupoId(grupo.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
                     active
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
-                  <span>{cat.icono}</span>
-                  <span>{cat.nombre}</span>
+                  <span>{grupo.icono}</span>
+                  <span>{grupo.nombre}</span>
                 </button>
               );
             })}
@@ -168,28 +200,53 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. CONTENEDOR DEL MAPA INTERACTIVO & LISTADO (Preparado para Mapbox) */}
+      {/* 3. MAPA INTERACTIVO & LISTADO */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Columna Izquierda: Panel de Centros Encontrados (4 cols) */}
-          <div className="lg:col-span-4 space-y-4">
+          {/* Columna Izquierda: listado (4 cols) */}
+          <div className="lg:col-span-4 space-y-4 order-2 lg:order-1">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <span>Centros de Acopio</span>
                 <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
-                  {CENTROS_DESTACADOS_PREVIEW.length} disponibles
+                  {visibles.length} {visibles.length === 1 ? 'resultado' : 'resultados'}
                 </span>
               </h2>
-              <span className="text-xs text-slate-400">Querétaro y Zona Metro</span>
+              {userLocation && (
+                <span className="text-xs text-slate-400">Ordenados por cercanía</span>
+              )}
             </div>
 
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-              {CENTROS_DESTACADOS_PREVIEW.map((centro) => {
-                const isSelected = centroSeleccionado.id === centro.id;
+            <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+              {cargando && (
+                <div className="space-y-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-28 rounded-xl bg-slate-200/70 animate-pulse" />
+                  ))}
+                </div>
+              )}
+
+              {!cargando && errorCarga && (
+                <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-xs text-red-700">
+                  {errorCarga}
+                </div>
+              )}
+
+              {!cargando && !errorCarga && visibles.length === 0 && (
+                <div className="p-6 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                  {centros.length === 0
+                    ? 'Aún no hay centros de acopio registrados.'
+                    : 'Ningún centro coincide con tu búsqueda o filtro.'}
+                </div>
+              )}
+
+              {visibles.map((centro) => {
+                const isSelected = selectedId === centro.id;
                 return (
                   <div
                     key={centro.id}
-                    onClick={() => setCentroSeleccionado(centro)}
+                    id={`centro-${centro.id}`}
+                    onClick={() => setSelectedId(isSelected ? null : centro.id)}
                     className={`p-4 rounded-xl border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-emerald-50/70 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
@@ -200,32 +257,44 @@ export default function HomePage() {
                       <h3 className="font-semibold text-slate-900 text-sm leading-snug">
                         {centro.nombre}
                       </h3>
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
-                        {centro.distancia}
-                      </span>
+                      {centro.distancia !== null && (
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                          {centro.distancia < 10
+                            ? centro.distancia.toFixed(1)
+                            : Math.round(centro.distancia)}{' '}
+                          km
+                        </span>
+                      )}
                     </div>
 
-                    <p className="text-xs text-slate-500 mb-2.5 flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="truncate">{centro.direccion}</span>
-                    </p>
+                    {centro.direccion && (
+                      <p className="text-xs text-slate-500 mb-2.5 line-clamp-2">{centro.direccion}</p>
+                    )}
 
                     <div className="flex flex-wrap gap-1 mb-2.5">
-                      {centro.materiales.map((m, idx) => (
-                        <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                          {m}
+                      {centro.categorias_aceptadas.slice(0, 4).map((cat) => (
+                        <span key={cat} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                          {cat}
                         </span>
                       ))}
+                      {centro.categorias_aceptadas.length > 4 && (
+                        <span className="text-[10px] text-slate-400 px-1 py-0.5">
+                          +{centro.categorias_aceptadas.length - 4}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-                      <span>🕒 {centro.horario}</span>
-                      <span className="text-emerald-600 font-semibold hover:underline">
-                        Ver detalles →
-                      </span>
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                      <span className="line-clamp-1">🕒 {centro.horarios ?? 'Horario no disponible'}</span>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${centro.lat},${centro.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-emerald-600 font-semibold hover:underline shrink-0"
+                      >
+                        Cómo llegar →
+                      </a>
                     </div>
                   </div>
                 );
@@ -233,66 +302,15 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Columna Derecha: Vista del Mapa (8 cols) */}
-          <div className="lg:col-span-8">
-            <div className="relative w-full h-[580px] bg-slate-100 rounded-2xl overflow-hidden border border-slate-300 shadow-inner flex flex-col justify-between p-6">
-              {/* Fondo simulando la red cartográfica de Querétaro */}
-              <div 
-                className="absolute inset-0 opacity-20 pointer-events-none"
-                style={{
-                  backgroundImage: `radial-gradient(#059669 1px, transparent 1px), radial-gradient(#059669 1px, #f8fafc 1px)`,
-                  backgroundSize: '32px 32px',
-                  backgroundPosition: '0 0, 16px 16px'
-                }}
+          {/* Columna Derecha: mapa (8 cols) */}
+          <div className="lg:col-span-8 order-1 lg:order-2">
+            <div className="relative w-full h-[420px] sm:h-[580px] rounded-2xl overflow-hidden border border-slate-300 shadow-inner bg-slate-100">
+              <MapboxView
+                centros={visibles}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                userLocation={userLocation}
               />
-
-              {/* Header flotante en el mapa */}
-              <div className="relative z-10 flex items-center justify-between bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-200/90 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-xs font-bold text-slate-700">
-                    Mapbox GL JS Viewer (Contenedor Listo)
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-1 rounded font-mono">
-                  QRO: [20.5888, -100.3899]
-                </span>
-              </div>
-
-              {/* Pin central visual para previsualización */}
-              <div className="relative z-10 flex flex-col items-center justify-center my-auto text-center p-6 max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl">
-                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-xs">
-                  🗺️
-                </div>
-                <h4 className="text-base font-bold text-slate-900 mb-1">
-                  Módulo de Mapa Interactivo
-                </h4>
-                <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-                  Este contenedor está listo para recibir el componente <code>&lt;MapboxView /&gt;</code> conectado a Mapbox GL JS y la función espacial PostGIS de Supabase.
-                </p>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-md border border-emerald-200">
-                    Pines Dinámicos
-                  </span>
-                  <span className="bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-md border border-emerald-200">
-                    Radio de Cercanía
-                  </span>
-                </div>
-              </div>
-
-              {/* Popup informativo inferior */}
-              <div className="relative z-10 bg-slate-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">Seleccionado:</span>
-                  <span className="truncate">{centroSeleccionado.nombre}</span>
-                </div>
-                <span className="text-slate-300 font-mono text-[11px]">
-                  {centroSeleccionado.municipio}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -319,7 +337,7 @@ export default function HomePage() {
                 Ubica tu centro más cercano
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Utiliza el mapa con geolocalización PostGIS para encontrar qué centro recibe exactamente los aparatos que quieres desechar.
+                Utiliza el mapa con geolocalización para encontrar qué centro recibe exactamente los aparatos que quieres desechar.
               </p>
             </div>
 
@@ -340,7 +358,7 @@ export default function HomePage() {
                 3
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-2">
-                Gana XP & Sube de Nivel
+                Gana XP &amp; Sube de Nivel
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Registra tu entrega en tu perfil ciudadano voluntario, desbloquea medallas ambientales y acumula puntos de experiencia ecológica.

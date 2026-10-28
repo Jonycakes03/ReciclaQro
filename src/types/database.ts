@@ -10,7 +10,7 @@
 // Tipos auxiliares
 // ---------------------------------------------------------------------------
 
-/** PostgREST serializa las columnas PostGIS (geography/geometry) como GeoJSON. */
+/** Geometría para insertar/actualizar columnas PostGIS desde GeoJSON. */
 export type GeoJSONPoint = {
   type: 'Point';
   /** [longitud, latitud] */
@@ -61,7 +61,11 @@ export type CentroAcopio = {
   id: string; // uuid
   nombre: string;
   direccion: string | null;
-  ubicacion: GeoJSONPoint;
+  /**
+   * Al LEER, PostgREST devuelve la columna PostGIS como EWKB hexadecimal
+   * (p. ej. "0101000020E6100000..."). Usa `parseUbicacion()` de `@/lib/geo`.
+   */
+  ubicacion: string;
   horarios: string | null;
   categorias_aceptadas: string[];
   activo: boolean | null; // DEFAULT true
@@ -78,6 +82,12 @@ export type CentroAcopioInsert = {
 };
 
 export type CentroAcopioUpdate = Partial<CentroAcopioInsert>;
+
+/** Centro con coordenadas ya decodificadas, tal como lo entrega GET /api/centros. */
+export type CentroAcopioMapa = Omit<CentroAcopio, 'ubicacion'> & {
+  lat: number;
+  lng: number;
+};
 
 // ---------------------------------------------------------------------------
 // public.registros_reciclaje
