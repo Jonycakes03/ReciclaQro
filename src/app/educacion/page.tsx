@@ -115,9 +115,12 @@ export default function EducacionPage() {
               Responde 5 preguntas rápidas y descubre qué tanto puedes mejorar tus hábitos de reciclaje.
             </p>
           </div>
-          <button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl transition-colors whitespace-nowrap text-sm">
+          <Link
+            href="/educacion/clasifica-residuos"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl transition-colors whitespace-nowrap text-sm cursor-pointer"
+          >
             Comenzar quiz
-          </button>
+          </Link>
         </div>
 
         {/* Grid de tarjetas */}
