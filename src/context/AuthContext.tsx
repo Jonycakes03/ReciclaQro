@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProfile]);
 
 
-  // Inicio de sesión con Magic Link (sin contraseña)
+  // Inicio de sesión con Magic Link (sin contraseña) - usado para registro
   const signInWithOtp = async (email: string) => {
     try {
       const redirectUrl = typeof window !== 'undefined'
@@ -92,7 +92,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Alias para compatibilidad con el código existente
+  // Alias para registro con Magic Link
+  const signUpWithMagicLink = signInWithOtp;
+
+  // Inicio de sesión con correo y contraseña
+  const signInWithPassword = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      return { error };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  // Establecer contraseña (para usuarios creados con Magic Link)
+  const setPassword = async (password: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+        data: { password_set: true },
+      });
+
+      return { error };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  // Recuperar contraseña (envía Magic Link para restablecer)
+  const resetPassword = async (email: string) => {
+    try {
+      const redirectUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/crear-contrasena`
+        : undefined;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      return { error };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  // Alias para compatibilidad con el código existente (deprecated)
   const signInWithEmail = signInWithOtp;
 
   // Cierre de sesión
@@ -117,6 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     signInWithOtp,
     signInWithEmail,
+    signInWithPassword,
+    signUpWithMagicLink,
+    setPassword,
+    resetPassword,
     signOut,
     refreshProfile,
   };

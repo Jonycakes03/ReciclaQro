@@ -34,7 +34,18 @@ export default function AuthCallbackPage() {
         router.replace('/perfil?error=auth_callback_failed');
       } else {
         setMensaje('¡Acceso verificado! Redirigiendo...');
-        router.replace('/perfil');
+        
+        // Verificar si el usuario ya tiene contraseña establecida
+        const { data: { user } } = await supabase.auth.getUser();
+        const passwordSet = user?.user_metadata?.password_set;
+        
+        if (passwordSet !== true) {
+          // Usuario sin contraseña → redirigir a crear contraseña
+          router.replace('/crear-contrasena');
+        } else {
+          // Usuario con contraseña → redirigir a perfil
+          router.replace('/perfil');
+        }
       }
     };
 

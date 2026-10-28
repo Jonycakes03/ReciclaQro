@@ -52,7 +52,15 @@ export interface InfoCategoriaRAEE {
 
 export interface PerfilResponse {
   usuario: Usuario;
-  historial: RegistroReciclaje[];
+  historial?: RegistroReciclaje[];
+}
+
+export interface CrearPerfilInput {
+  nombre?: string;
+}
+
+export interface CrearPerfilResponse {
+  usuario: Usuario;
 }
 
 export interface RegistrarReciclajeInput {
@@ -77,6 +85,10 @@ export interface AuthContextType {
   isLoading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  setPassword: (password: string) => Promise<{ error: Error | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
