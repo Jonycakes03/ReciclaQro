@@ -37,6 +37,7 @@ export type Usuario = {
   id: string; // uuid, FK -> auth.users.id
   nombre: string | null;
   email: string;
+  edad?: number | null;
   experiencia_xp: number | null; // DEFAULT 0
   nivel_actual: number | null; // DEFAULT 1
   fecha_registro: string; // timestamptz (ISO 8601)
@@ -46,6 +47,7 @@ export type UsuarioInsert = {
   id: string;
   email: string;
   nombre?: string | null;
+  edad?: number | null;
   experiencia_xp?: number | null;
   nivel_actual?: number | null;
   fecha_registro?: string;
@@ -119,18 +121,28 @@ export type RegistroReciclajeUpdate = Partial<RegistroReciclajeInsert>;
 
 export type MaterialEducativo = {
   id: string; // uuid
+  slug: string; // identificador único legible en URL (ej: celular-basura)
   titulo: string;
+  descripcion: string | null;
   contenido: string;
   categoria: string | null;
+  nivel: string | null; // 'BÁSICO' | 'AVANZADO'
+  tipo: string | null; // 'ARTÍCULO' | 'INFOGRAFÍA' | 'QUIZ' | 'GUÍA DOCENTE'
+  tiempo_lectura: string | null; // ej: '4 min de lectura'
   url_imagen: string | null;
   fecha_publicacion: string; // timestamptz (ISO 8601)
 };
 
 export type MaterialEducativoInsert = {
   id?: string;
+  slug: string;
   titulo: string;
+  descripcion?: string | null;
   contenido: string;
   categoria?: string | null;
+  nivel?: string | null;
+  tipo?: string | null;
+  tiempo_lectura?: string | null;
   url_imagen?: string | null;
   fecha_publicacion?: string;
 };

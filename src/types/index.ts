@@ -86,6 +86,12 @@ export interface AuthContextType {
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string) => Promise<{ error: Error | null }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithPassword: (data: {
+    email: string;
+    password: string;
+    nombre: string;
+    edad: number;
+  }) => Promise<{ error: Error | null; data?: any }>;
   signUpWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   setPassword: (password: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;

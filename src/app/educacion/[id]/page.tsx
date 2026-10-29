@@ -352,18 +352,57 @@ const CONTENIDO_ARTICULOS: Record<string, { titulo: string; nivel: string; tipo:
 export default function ArticuloPage() {
   const params = useParams();
   const id = params.id as string;
-  const articulo = CONTENIDO_ARTICULOS[id];
+  const staticArticulo = CONTENIDO_ARTICULOS[id];
 
-  if (!articulo) {
+  const [articuloDinamico, setArticuloDinamico] = React.useState<{
+    titulo: string;
+    nivel: string;
+    tipo: string;
+    contenido: string;
+  } | null>(null);
+
+  React.useEffect(() => {
+    let cancel = false;
+    async function fetchArticulo() {
+      try {
+        const res = await fetch(`/api/educacion/${id}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.data && !cancel) {
+          setArticuloDinamico({
+            titulo: json.data.titulo,
+            nivel: (json.data.nivel || 'BÁSICO').toUpperCase(),
+            tipo: (json.data.tipo || 'ARTÍCULO').toUpperCase(),
+            contenido: json.data.contenido,
+          });
+        }
+      } catch (err) {
+        console.warn('Fallback a contenido estático:', err);
+      }
+    }
+    fetchArticulo();
+    return () => {
+      cancel = true;
+    };
+  }, [id]);
+
+  if (!staticArticulo && !articuloDinamico) {
     notFound();
   }
+
+  // Si es el quiz interactivo, priorizamos el componente de React para mantener los controles
+  const esQuiz = id === 'clasifica-residuos';
+
+  const titulo = articuloDinamico?.titulo ?? staticArticulo?.titulo ?? 'Material Educativo';
+  const nivel = articuloDinamico?.nivel ?? staticArticulo?.nivel ?? 'BÁSICO';
+  const tipo = articuloDinamico?.tipo ?? staticArticulo?.tipo ?? 'ARTÍCULO';
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link
           href="/educacion"
-          className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors"
+          className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors font-medium text-sm"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7 7" />
@@ -373,31 +412,38 @@ export default function ArticuloPage() {
         
         <div className="mb-6">
           <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full ${
-            articulo.nivel === 'BÁSICO'
+            nivel === 'BÁSICO'
               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
               : 'bg-blue-50 text-blue-800 border border-blue-200'
           }`}>
-            {articulo.nivel}
+            {nivel}
           </span>
           <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full ml-2 ${
-            articulo.tipo === 'ARTÍCULO'
+            tipo === 'ARTÍCULO'
               ? 'bg-amber-50 text-amber-800 border border-amber-200'
-              : articulo.tipo === 'INFOGRAFÍA'
+              : tipo === 'INFOGRAFÍA'
               ? 'bg-purple-50 text-purple-800 border border-purple-200'
-              : articulo.tipo === 'QUIZ'
+              : tipo === 'QUIZ'
               ? 'bg-rose-50 text-rose-800 border border-rose-200'
               : 'bg-cyan-50 text-cyan-800 border border-cyan-200'
           }`}>
-            {articulo.tipo}
+            {tipo}
           </span>
         </div>
         
-        <article className="bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            {articulo.titulo}
+        <article className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+            {titulo}
           </h1>
           
-          {articulo.contenido}
+          {esQuiz || !articuloDinamico?.contenido ? (
+            staticArticulo?.contenido
+          ) : (
+            <div
+              className="prose prose-emerald max-w-none text-gray-700 leading-relaxed space-y-4"
+              dangerouslySetInnerHTML={{ __html: articuloDinamico.contenido }}
+            />
+          )}
         </article>
       </div>
     </div>

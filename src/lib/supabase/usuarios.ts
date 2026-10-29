@@ -28,6 +28,7 @@ export async function obtenerOCrearUsuario(
         (authUser.user_metadata?.nombre as string | undefined) ??
         authUser.email?.split('@')[0] ??
         null,
+      edad: (authUser.user_metadata?.edad as number | undefined) ?? null,
       experiencia_xp: 0,
       nivel_actual: 1,
     })

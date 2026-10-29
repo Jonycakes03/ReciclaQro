@@ -9,16 +9,21 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   try {
-    const categoria = new URL(request.url).searchParams.get('categoria');
+    const url = new URL(request.url);
+    const categoria = url.searchParams.get('categoria');
+    const slug = url.searchParams.get('slug');
     const supabase = createSupabasePublicClient();
 
     let query = supabase
       .from('material_educativo')
-      .select('id, titulo, contenido, categoria, url_imagen, fecha_publicacion')
+      .select('id, slug, titulo, descripcion, contenido, categoria, nivel, tipo, tiempo_lectura, url_imagen, fecha_publicacion')
       .order('fecha_publicacion', { ascending: false });
 
     if (categoria) {
       query = query.eq('categoria', categoria);
+    }
+    if (slug) {
+      query = query.eq('slug', slug);
     }
 
     const { data, error } = await query;

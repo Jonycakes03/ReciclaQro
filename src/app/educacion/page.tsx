@@ -1,11 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const ARTICULOS = [
+interface ArticuloEducativo {
+  id: string;
+  slug?: string;
+  nivel: string;
+  tipo: string;
+  titulo: string;
+  descripcion: string;
+  tiempo: string;
+}
+
+const ARTICULOS_DEFAULT: ArticuloEducativo[] = [
   {
     id: 'celular-basura',
+    slug: 'celular-basura',
     nivel: 'BÁSICO',
     tipo: 'ARTÍCULO',
     titulo: '¿Por qué tirar un celular a la basura es peligroso?',
@@ -14,6 +25,7 @@ const ARTICULOS = [
   },
   {
     id: 'tipos-centros-acopio',
+    slug: 'tipos-centros-acopio',
     nivel: 'BÁSICO',
     tipo: 'INFOGRAFÍA',
     titulo: 'Qué acepta cada tipo de centro de acopio',
@@ -22,6 +34,7 @@ const ARTICULOS = [
   },
   {
     id: 'economia-circular',
+    slug: 'economia-circular',
     nivel: 'AVANZADO',
     tipo: 'ARTÍCULO',
     titulo: 'De la chatarra a la economía circular',
@@ -30,6 +43,7 @@ const ARTICULOS = [
   },
   {
     id: 'raee-aula',
+    slug: 'raee-aula',
     nivel: 'AVANZADO',
     tipo: 'GUÍA DOCENTE',
     titulo: 'RAEE en el aula: actividades para escuelas',
@@ -38,6 +52,7 @@ const ARTICULOS = [
   },
   {
     id: 'clasifica-residuos',
+    slug: 'clasifica-residuos',
     nivel: 'BÁSICO',
     tipo: 'QUIZ',
     titulo: 'Identifica el residuo correcto',
@@ -65,9 +80,43 @@ const TIPO_COLOR: Record<string, string> = {
 };
 
 export default function EducacionPage() {
+  const [articulos, setArticulos] = useState<ArticuloEducativo[]>(ARTICULOS_DEFAULT);
   const [filtro, setFiltro] = useState<'todos' | 'basico' | 'avanzado'>('todos');
+  const [cargando, setCargando] = useState(false);
 
-  const articulosFiltrados = ARTICULOS.filter((a) => {
+  useEffect(() => {
+    let cancel = false;
+    async function cargarArticulos() {
+      try {
+        setCargando(true);
+        const res = await fetch('/api/educacion');
+        if (!res.ok) return;
+        const body = await res.json();
+        if (body.data && Array.isArray(body.data) && body.data.length > 0 && !cancel) {
+          const transformados: ArticuloEducativo[] = body.data.map((item: any) => ({
+            id: item.slug || item.id,
+            slug: item.slug || item.id,
+            nivel: (item.nivel || item.categoria || 'BÁSICO').toUpperCase(),
+            tipo: (item.tipo || 'ARTÍCULO').toUpperCase(),
+            titulo: item.titulo,
+            descripcion: item.descripcion || (item.contenido ? item.contenido.replace(/<[^>]*>?/gm, '').slice(0, 120) + '...' : ''),
+            tiempo: item.tiempo_lectura || '4 min de lectura',
+          }));
+          setArticulos(transformados);
+        }
+      } catch (err) {
+        console.warn('Cargando artículos locales por fallback:', err);
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    }
+    cargarArticulos();
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  const articulosFiltrados = articulos.filter((a) => {
     if (filtro === 'todos') return true;
     if (filtro === 'basico') return a.nivel === 'BÁSICO';
     if (filtro === 'avanzado') return a.nivel === 'AVANZADO';

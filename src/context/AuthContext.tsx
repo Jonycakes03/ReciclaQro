@@ -109,6 +109,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Creación de cuenta con nombre, edad, correo y contraseña
+  const signUpWithPassword = async ({
+    email,
+    password,
+    nombre,
+    edad,
+  }: {
+    email: string;
+    password: string;
+    nombre: string;
+    edad: number;
+  }) => {
+    try {
+      const redirectUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/callback`
+        : undefined;
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            nombre,
+            edad,
+            password_set: true,
+          },
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      return { data, error };
+    } catch (err) {
+      return { data: null, error: err as Error };
+    }
+  };
+
   // Establecer contraseña (para usuarios creados con Magic Link)
   const setPassword = async (password: string) => {
     try {
@@ -166,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithOtp,
     signInWithEmail,
     signInWithPassword,
+    signUpWithPassword,
     signUpWithMagicLink,
     setPassword,
     resetPassword,

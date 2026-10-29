@@ -50,6 +50,7 @@ export async function GET(request: Request) {
             id: usuario.id,
             nombre: usuario.nombre,
             email: usuario.email,
+            edad: usuario.edad ?? null,
             experiencia_xp: usuario.experiencia_xp ?? 0,
             nivel_actual: usuario.nivel_actual ?? 1,
             fecha_registro: usuario.fecha_registro,
@@ -66,8 +67,8 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST /api/perfil — Crea explícitamente la fila del usuario (usado en /crear-contrasena).
- * Body opcional: { nombre?: string }
+ * POST /api/perfil — Crea explícitamente la fila del usuario.
+ * Body opcional: { nombre?: string, edad?: number }
  */
 export async function POST(request: Request) {
   try {
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const nombre = body.nombre as string | undefined;
+    const edad = body.edad as number | undefined;
 
     const { usuario, error: errorUsuario } = await obtenerOCrearUsuario(supabase, user);
     if (errorUsuario || !usuario) {
@@ -89,16 +91,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Si se proporcionó un nombre y el usuario no tiene uno, actualizarlo
-    if (nombre && !usuario.nombre) {
+    // Actualizar nombre o edad si fueron provistos
+    const updates: Partial<{ nombre: string; edad: number }> = {};
+    if (nombre && !usuario.nombre) updates.nombre = nombre;
+    if (edad && usuario.edad == null) updates.edad = edad;
+
+    if (Object.keys(updates).length > 0) {
       const { error: errorUpdate } = await supabase
         .from('usuarios')
-        .update({ nombre })
+        .update(updates)
         .eq('id', user.id);
 
       if (errorUpdate) {
-        console.error('[POST /api/perfil] update nombre:', errorUpdate);
-        // No fallamos el request si el update falla, el usuario ya fue creado
+        console.error('[POST /api/perfil] update perfil:', errorUpdate);
       }
     }
 
@@ -109,6 +114,7 @@ export async function POST(request: Request) {
             id: usuario.id,
             nombre: usuario.nombre || nombre || null,
             email: usuario.email,
+            edad: usuario.edad ?? edad ?? null,
             experiencia_xp: usuario.experiencia_xp ?? 0,
             nivel_actual: usuario.nivel_actual ?? 1,
             fecha_registro: usuario.fecha_registro,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/supabase/server';
 import { obtenerOCrearUsuario } from '@/lib/supabase/usuarios';
+import { calcularProgresoUsuario } from '@/lib/gamification';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,12 +90,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // --- 2. Sumar XP al usuario ---
+    // --- 2. Sumar XP y recalcular nivel al usuario ---
     const nuevaXp = (usuario.experiencia_xp ?? 0) + xp_otorgada;
+    const progreso = calcularProgresoUsuario(nuevaXp);
 
     const { data: usuarioActualizado, error: errorUpdate } = await supabase
       .from('usuarios')
-      .update({ experiencia_xp: nuevaXp })
+      .update({
+        experiencia_xp: nuevaXp,
+        nivel_actual: progreso.nivel,
+      })
       .eq('id', user.id)
       .select('id, nombre, email, experiencia_xp, nivel_actual')
       .single();

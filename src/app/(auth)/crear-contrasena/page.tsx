@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -19,9 +19,14 @@ export default function CrearContrasenaPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Si no hay sesión, redirigir a login
+  // Si no hay sesión, redirigir a login dentro de useEffect
+  useEffect(() => {
+    if (!loading && !session && typeof window !== 'undefined') {
+      router.push('/login');
+    }
+  }, [session, loading, router]);
+
   if (!session) {
-    router.push('/login');
     return null;
   }
 
