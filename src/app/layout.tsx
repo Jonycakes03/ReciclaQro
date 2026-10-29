@@ -34,6 +34,9 @@ export const metadata: Metadata = {
     "Medio ambiente Querétaro",
   ],
   authors: [{ name: "Comunidad ReciclaQro" }],
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     type: "website",
     locale: "es_MX",
